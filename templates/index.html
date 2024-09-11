@@ -3,76 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sketch to Logo Generator</title>
-    <!-- AIzaSyCUJbZgiK2x6S1Lkf_whpazj-41b8WeGxk -->
-    <script async src="https://cse.google.com/cse.js?cx=712f655d3c43944fd">
-    </script>
-    
+    <title>Upload and Search Image</title>
     <style>
-        #preview {
-            margin-top: 20px;
-            border: 1px solid #ccc;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        #preview img {
-            max-width: 500px;
-            max-height: 500px;
+        #searchResults img {
+            max-width: 200px;
+            margin: 5px;
         }
     </style>
 </head>
 <body>
-    <h1>Sketch to Logo Generator</h1>
-    <div class="gcse-search"></div>
+    <h1>Upload Image and Search</h1>
     <form id="uploadForm" enctype="multipart/form-data">
         <input type="file" name="file" id="fileInput" accept="image/*" required>
         <br><br>
-        <label for="lowerThreshold">Lower Threshold: <span id="lowerValue">50</span></label>
-        <input type="range" id="lowerThreshold" min="0" max="255" value="50">
-        <br>
-        <label for="upperThreshold">Upper Threshold: <span id="upperValue">150</span></label>
-        <input type="range" id="upperThreshold" min="0" max="255" value="150">
-        <br>
-        <button type="button" onclick="generatePreview()">Preview</button>
-        <button type="submit">Generate Logo</button>
+        <button type="button" onclick="uploadAndSearch()">Upload and Search</button>
     </form>
 
-    <div id="preview">
-        <h3>Preview:</h3>
-        <img id="previewImage" src="" alt="Traced Sketch Preview">
-    </div>
-    
-    <h1>Image Search</h1>
-    <form id="searchForm">
-        <input type="text" id="searchQuery" name="query" placeholder="Search for images..." required>
-        <button type="button" onclick="searchImage()">Search</button>
-    </form>
-    
     <div id="searchResults">
-        <h3>Image Results:</h3>
+        <h3>Search Results:</h3>
         <div id="imageContainer"></div>
-        <button id="prevPage" onclick="changePage(-1)" style="display:none;">Previous</button>
-        <button id="nextPage" onclick="changePage(1)" style="display:none;">Next</button>
+        <button id="prevButton" onclick="loadPage(currentPage - 1)" disabled>Previous</button>
+        <button id="nextButton" onclick="loadPage(currentPage + 1)">Next</button>
     </div>
 
     <script>
         let currentPage = 1;
 
-        async function searchImage(page = 1) {
-            const query = document.getElementById('searchQuery').value;
-            if (!query) {
-                alert('Please enter a search query.');
+        async function uploadAndSearch() {
+            const file = document.getElementById('fileInput').files[0];
+            if (!file) {
+                alert('Please select a file.');
                 return;
             }
 
             const formData = new FormData();
-            formData.append('query', query);
-            formData.append('start', (page - 1) * 10 + 1);  // Calculate start index
+            formData.append('file', file);
 
             try {
-                const response = await fetch('/search_image', {
+                const response = await fetch('/upload_and_search', {
                     method: 'POST',
                     body: formData
                 });
@@ -87,101 +55,66 @@
                             const img = document.createElement('img');
                             img.src = image.link;
                             img.alt = image.title;
-                            img.style.maxWidth = '200px';
-                            img.style.margin = '5px';
                             imageContainer.appendChild(img);
                         });
 
-                        // Update pagination controls
-                        currentPage = page;
-                        document.getElementById('prevPage').style.display = page > 1 ? 'inline' : 'none';
-                        document.getElementById('nextPage').style.display = data.images.length >= 10 ? 'inline' : 'none';
+                        currentPage = 1;  // Reset to first page
+                        document.getElementById('prevButton').disabled = true;
+                        document.getElementById('nextButton').disabled = data.images.length < 10;
                     } else {
-                        document.getElementById('imageContainer').innerHTML = 'No images found.';
-                        document.getElementById('prevPage').style.display = 'none';
-                        document.getElementById('nextPage').style.display = 'none';
+                        imageContainer.innerHTML = 'No images found.';
                     }
                 } else {
                     const errorData = await response.json();
-                    alert('Error searching for images: ' + errorData.error);
+                    alert('Error uploading and searching: ' + errorData.error);
                 }
             } catch (error) {
-                alert('Error searching for images: ' + error);
+                alert('Error uploading and searching: ' + error);
             }
         }
 
-        function changePage(direction) {
-            const newPage = currentPage + direction;
-            if (newPage > 0) {
-                searchImage(newPage);
-            }
-        }
+        async function loadPage(page) {
+            if (page < 1) return;
 
-    </script>
+            const file = document.getElementById('fileInput').files[0];
+            if (!file) return;
 
-
-    <script>
-        const fileInput = document.getElementById('fileInput');
-        const lowerThreshold = document.getElementById('lowerThreshold');
-        const upperThreshold = document.getElementById('upperThreshold');
-        const lowerValue = document.getElementById('lowerValue');
-        const upperValue = document.getElementById('upperValue');
-        const previewImage = document.getElementById('previewImage');
-    
-        lowerThreshold.addEventListener('input', () => {
-            lowerValue.textContent = lowerThreshold.value;
-        });
-    
-        upperThreshold.addEventListener('input', () => {
-            upperValue.textContent = upperThreshold.value;
-        });
-    
-        async function generatePreview() {
-            const file = fileInput.files[0];
-            if (!file) {
-                alert('Please select a file.');
-                return;
-            }
-    
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('lower_threshold', lowerThreshold.value);
-            formData.append('upper_threshold', upperThreshold.value);
-    
-            // Make a request to preview the traced image
-            const response = await fetch('/preview_trace', {
-                method: 'POST',
-                body: formData
-            });
-    
-            if (response.ok) {
-                const data = await response.json();
-                // Append a timestamp to the image URL to prevent caching
-                previewImage.src = `${data.image_url}?t=${new Date().getTime()}`;
-            } else {
-                alert('Error generating preview.');
+
+            try {
+                const response = await fetch(`/search_image?start=${(page - 1) * 10 + 1}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const imageContainer = document.getElementById('imageContainer');
+                    imageContainer.innerHTML = '';  // Clear previous results
+
+                    if (data.images && data.images.length > 0) {
+                        data.images.forEach(image => {
+                            const img = document.createElement('img');
+                            img.src = image.link;
+                            img.alt = image.title;
+                            imageContainer.appendChild(img);
+                        });
+
+                        currentPage = page;
+                        document.getElementById('prevButton').disabled = page === 1;
+                        document.getElementById('nextButton').disabled = data.images.length < 10;
+                    } else {
+                        imageContainer.innerHTML = 'No images found.';
+                    }
+                } else {
+                    const errorData = await response.json();
+                    alert('Error loading page: ' + errorData.error);
+                }
+            } catch (error) {
+                alert('Error loading page: ' + error);
             }
         }
-    
-        // Handle form submission
-        document.getElementById('uploadForm').addEventListener('submit', function (event) {
-            event.preventDefault();
-            const formData = new FormData(this);
-            formData.append('lower_threshold', lowerThreshold.value);
-            formData.append('upper_threshold', upperThreshold.value);
-    
-            fetch('/generate_logo', {
-                method: 'POST',
-                body: formData
-            }).then(response => response.json())
-              .then(data => {
-                  alert(data.message);
-              })
-              .catch(error => {
-                  alert('Error generating logo: ' + error);
-              });
-        });
     </script>
-    
 </body>
 </html>
